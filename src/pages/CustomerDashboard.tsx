@@ -52,7 +52,7 @@ const CustomerDashboard = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<'recommended' | 'deals' | 'trending'>('recommended');
 
-  // ── FIX 1: Fetch past orders (Shop Isolated) ──
+  // ── FIX 1: Fetch past orders (Shop Isolated & Schema Fixed) ──
   const { data: pastOrders = [] } = useQuery<PastOrder[]>({
     queryKey: ['customerOrders', user?.id, profile?.shop_id],
     queryFn: async () => {
@@ -60,7 +60,7 @@ const CustomerDashboard = () => {
       const { data } = await supabase
         .from('sales')
         .select('id, created_at, total_amount, items')
-        .eq('user_id', user.id) // Personal history
+        .eq('created_by', user.id) // FIXED: Changed from user_id to created_by
         .eq('shop_id', profile.shop_id) // CURRENT shop isolation
         .order('created_at', { ascending: false })
         .limit(20);

@@ -86,7 +86,22 @@ const CustomerPOSPage = () => {
         },
     });
 
-    const { data: pastOrders = [] } = useQuery({ queryKey: ['pastOrders', user?.id], queryFn: async () => { if (!user) return []; const { data, error } = await supabase.from('sales').select('id, created_at, total_amount, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10); if (error) throw new Error('Could not fetch past orders: ' + error.message); return data as PastOrder[]; }, enabled: !!user });
+    const { data: pastOrders = [] } = useQuery({ 
+        queryKey: ['pastOrders', user?.id], 
+        queryFn: async () => { 
+            if (!user) return []; 
+            const { data, error } = await supabase
+                .from('sales')
+                .select('id, created_at, total_amount, items')
+                .eq('created_by', user.id) // FIXED: Changed from user_id to created_by
+                .order('created_at', { ascending: false })
+                .limit(10); 
+            if (error) throw new Error('Could not fetch past orders: ' + error.message); 
+            return data as PastOrder[]; 
+        }, 
+        enabled: !!user 
+    });
+    
     const processSaleMutation = useMutation({ mutationFn: async (payload: { cartItems: any[]; customer: any; billData: any; }) => { const { data, error } = await supabase.functions.invoke('process-sale', { body: payload }); if (error) throw new Error(`Transaction failed: ${error.message}`); return data; }, onSuccess: (data, variables) => { queryClient.invalidateQueries({ queryKey: ['adminInventory'] }); queryClient.invalidateQueries({ queryKey: ['pastOrders', user?.id] }); toast({ title: "Order Placed!", description: "Your payment was successful.", className: "bg-green-100 border-green-400" }); setCompletedBill(variables.billData); setShowPaymentDialog(false); setShowSaleSuccessDialog(true); resetSale(); }, onError: (error: any) => { toast({ title: "Payment Failed", description: error.message, variant: "destructive" }); } });
     const sendEmailMutation = useMutation({ mutationFn: async (vars: { to: string; subject: string; html: string; pdfBase64: string; pdfName: string }) => { const { error } = await supabase.functions.invoke('send-email', { body: vars }); if (error) throw new Error(`Failed to send email: ${error.message}`); }, onSuccess: () => { toast({ title: 'Email Sent!', description: 'The invoice has been sent.' }); }, onError: (error: Error) => { toast({ title: 'Email Failed', description: error.message, variant: 'destructive' }); } });
 

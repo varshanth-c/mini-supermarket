@@ -130,7 +130,7 @@ export const Navbar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <p className="text-sm font-bold truncate">{profile?.full_name || 'My Account'}</p>
+                  <p className="text-sm font-bold truncate">{profile?.name || 'My Account'}</p>
                   <p className="text-[10px] text-gray-400 truncate">{user?.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
