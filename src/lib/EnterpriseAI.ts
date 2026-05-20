@@ -15,7 +15,7 @@ from '@google/generative-ai';
 
 const GEMINI_API_KEY =
   import.meta.env
-    .VITE_GEMINI_API_KEY;
+    .VITE_GEMINI;
 
 const GROQ_API_KEY =
   import.meta.env

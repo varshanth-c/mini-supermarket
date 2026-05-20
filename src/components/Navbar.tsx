@@ -41,11 +41,9 @@ export const Navbar = () => {
     { path: '/expense', label: 'Expenses', icon: DollarSign },
     { path: '/suppliers', label: 'Suppliers', icon: Truck },
     { path: '/reports', label: 'Reports', icon: FileText },
-    
-    { path: '/advisor', label: 'AI Advisor', icon: Sparkles, color: 'text-violet-600' },
     {
       path:'/ai-advisor',
-  label: 'Advisor',
+  label: 'AI Advisor',
   icon: Bot,
 }
   ];
