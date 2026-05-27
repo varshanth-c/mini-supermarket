@@ -197,7 +197,7 @@ Rules:
 - No semicolon at the end
 - Only SELECT statements allowed`;
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -220,8 +220,9 @@ Rules:
   const data = await response.json();
   let sql = data.choices?.[0]?.message?.content?.trim() || '';
 
-  // Strip any accidental markdown backticks
+  // ✅ FIX: Kept entirely on one line so Vite doesn't crash
   sql = sql.replace(/```sql/gi, '').replace(/```/g, '').trim();
+  
   // Remove trailing semicolon (Supabase RPC doesn't like it)
   sql = sql.replace(/;$/, '').trim();
 
@@ -284,7 +285,7 @@ Now answer the user's question directly using the actual data above.
 - If there was an error, explain what went wrong simply
 - Do NOT say "based on the data" or "according to the results" — just answer directly`;
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -296,7 +297,14 @@ Now answer the user's question directly using the actual data above.
         {
           role: 'system',
           content:
-            'You are a retail business analyst. Answer questions directly using real data. Be specific, concise, and actionable.',
+            `You are an expert retail business analyst.
+            
+IMPORTANT:
+- Always use the Indian Rupee symbol (₹) for ALL monetary values.
+- NEVER use the dollar sign ($) or any other currency symbol.
+- Format all large numbers using the en-IN locale format (e.g., ₹1,00,000 instead of ₹100,000).
+
+Answer questions directly using real data. Be specific, concise, and actionable.`
         },
         { role: 'user', content: prompt },
       ],
@@ -352,10 +360,37 @@ export async function loadChatHistory(params: {
       .limit(params.limit || 30);
 
     if (error) throw error;
+    // ✅ Returns an empty array correctly when no history exists
     return data || [];
   } catch (error) {
     console.error('Load Chat History Error:', error);
     return [];
+  }
+}
+
+// ============================================================
+// CLEAR CHAT HISTORY
+// ============================================================
+
+export async function clearChatHistory(params: {
+  shopId: string;
+  userId: string;
+}): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('ai_memory')
+      .delete()
+      .eq('shop_id', params.shopId)
+      .eq('user_id', params.userId)
+      .eq('module', 'enterprise_rag');
+
+    if (error) {
+      throw new Error(`Failed to clear history: ${error.message}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Clear Chat History Error:', error);
+    throw error;
   }
 }
 
@@ -396,7 +431,7 @@ export async function retrieveMemory(params: {
 }
 
 // ============================================================
-// KEPT FOR COMPATIBILITY — no longer does anything
+// COMPATIBILITY SHIMS
 // ============================================================
 
 export async function storeEmbedding(_params: any) {}
@@ -413,7 +448,7 @@ export async function generateEmbedding(_text: string): Promise<number[]> {
   return [];
 }
 export async function askGroq(prompt: string): Promise<string> {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

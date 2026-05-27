@@ -18,7 +18,13 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 
-import { runEnterpriseRAG, indexShopData, loadChatHistory } from '@/lib/EnterpriseAI';
+// ✅ IMPORT ADDED: clearChatHistory
+import { 
+  runEnterpriseRAG, 
+  indexShopData, 
+  loadChatHistory, 
+  clearChatHistory 
+} from '@/lib/EnterpriseAI';
 import { getTrendingSearches, getVendorRecommendations } from '@/lib/recommendationEngine';
 import { getTopSemanticIssues } from '@/lib/semanticInsights';
 
@@ -73,9 +79,7 @@ interface Message {
 }
 
 // ============================================================
-// Session storage helpers — persists across tab switches & page
-// focus changes, but clears when browser tab is fully closed.
-// Cross-session persistence comes from Supabase (loadChatHistory).
+// Session storage helpers
 // ============================================================
 const SESSION_KEY = 'rag_chat_messages';
 
@@ -99,7 +103,6 @@ function loadMessagesFromSession(): Message[] {
 // ============================================================
 // Helpers
 // ============================================================
-/** Deduplicate messages by id, preserving order */
 function dedupeMessages(msgs: Message[]): Message[] {
   const seen = new Set<string>();
   return msgs.filter((m) => {
@@ -109,13 +112,11 @@ function dedupeMessages(msgs: Message[]): Message[] {
   });
 }
 
-/** Convert Supabase history rows → Message pairs with stable, unique ids */
 function historyToMessages(
   history: Array<{ question: string; response: string; created_at: string }>
 ): Message[] {
   const msgs: Message[] = [];
   history.forEach((entry, idx) => {
-    // Use created_at + idx for uniqueness; fall back to idx alone if date is missing
     const base = entry.created_at
       ? `${new Date(entry.created_at).getTime()}-${idx}`
       : `fallback-${idx}`;
@@ -136,9 +137,6 @@ function historyToMessages(
   return msgs;
 }
 
-// ============================================================
-// Quick prompts
-// ============================================================
 const quickPrompts = [
   'Why are profits decreasing this week?',
   'Which products should I reorder urgently?',
@@ -154,8 +152,6 @@ const quickPrompts = [
 const RAGKnowledgeEngine = () => {
   const { profile, user } = useAuth();
 
-  // ✅ FIX: Initialize from sessionStorage immediately so tab-switching
-  // never blanks the chat. Supabase history is merged in on first load.
   const [messages, setMessages] = useState<Message[]>(() => loadMessagesFromSession());
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -165,20 +161,14 @@ const RAGKnowledgeEngine = () => {
   const [semanticInsights, setSemanticInsights] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Track whether we've already merged Supabase history this session
   const historyMergedRef = useRef(false);
 
-  // ✅ FIX: Persist messages to sessionStorage on every change
   useEffect(() => {
     saveMessagesToSession(messages);
   }, [messages]);
 
-  // ============================================================
-  // Init: load sidebar data + merge Supabase history once
-  // ============================================================
   useEffect(() => {
     const init = async () => {
-      // Sidebar data (no auth needed)
       const [trends, semantic] = await Promise.all([
         getTrendingSearches(),
         getTopSemanticIssues(),
@@ -191,11 +181,9 @@ const RAGKnowledgeEngine = () => {
         return;
       }
 
-      // Vendor recommendations
       const vendorInsights = await getVendorRecommendations(profile.shop_id);
       setRecommendations(vendorInsights);
 
-      // ✅ Only merge Supabase history once per browser session
       if (!historyMergedRef.current) {
         historyMergedRef.current = true;
 
@@ -207,7 +195,6 @@ const RAGKnowledgeEngine = () => {
 
         if (history.length > 0) {
           const dbMessages = historyToMessages(history);
-          // Merge: put DB history first, then any in-session messages not yet in DB
           setMessages((prev) => dedupeMessages([...dbMessages, ...prev]));
         }
       }
@@ -218,22 +205,17 @@ const RAGKnowledgeEngine = () => {
     init();
   }, [profile?.shop_id, user?.id]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // ============================================================
-  // Send a message
-  // ============================================================
   const generateResponse = useCallback(
     async (question: string) => {
       if (!profile?.shop_id || !user?.id) return;
 
       const userMsg: Message = {
-        // ✅ FIX: crypto.randomUUID() guarantees uniqueness — no duplicates
         id: `user-${crypto.randomUUID()}`,
         role: 'user',
         content: question,
@@ -279,9 +261,21 @@ const RAGKnowledgeEngine = () => {
     await generateResponse(question);
   };
 
-  const handleReset = () => {
+  // ✅ FIX: Added async DB deletion alongside state clearing
+  const handleReset = async () => {
     setMessages([]);
     sessionStorage.removeItem(SESSION_KEY);
+    
+    if (profile?.shop_id && user?.id) {
+      try {
+        await clearChatHistory({ 
+          shopId: profile.shop_id, 
+          userId: user.id 
+        });
+      } catch (error) {
+        console.error("Error clearing DB chat history:", error);
+      }
+    }
   };
 
   const businessHealth = useMemo(() => {
@@ -291,9 +285,6 @@ const RAGKnowledgeEngine = () => {
     return 'Needs Attention';
   }, [semanticInsights]);
 
-  // ============================================================
-  // Render
-  // ============================================================
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -498,7 +489,6 @@ const RAGKnowledgeEngine = () => {
                           </motion.div>
                         )}
 
-                        {/* ✅ FIX: message.id is always unique — no duplicate key warnings */}
                         {messages.map((message) => (
                           <motion.div
                             key={message.id}

@@ -22,14 +22,14 @@ import Sales from './pages/Sales';
 import CustomerPOSPage from './pages/CustomerPOSPage';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
-import Analytics from './pages/Analytics';
+
 import FreshnessMonitor from './pages/FreshnessMonitor';
 import { ProfilePage } from './pages/ProfilePage';
 
 // NEW INTEGRATED AI MODULES
 import AIShoppingAssistant from './pages/AIShoppingAssistant'; // Member 2
-import RAGAdvisor from './pages/RAGAdvisor';                   // Member 2
-import Suppliers from './pages/Suppliers';                     // Member 4
+                  // Member 2
+                   // Member 4
 
 // Customer Pages
 import CustomerDashboard from './pages/CustomerDashboard';
@@ -159,27 +159,6 @@ const AppRoutes = () => {
 
       
 
-      <Route
-        path="/advisor"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <RAGAdvisor />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/suppliers"
-        element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <Suppliers />
-            </AdminRoute>
-          </ProtectedRoute>
-        }
-      />
 
       <Route
         path="/reports"

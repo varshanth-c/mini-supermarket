@@ -39,7 +39,7 @@ export const Navbar = () => {
     { path: '/freshness-monitor', label: 'Freshness AI', icon: Activity, color: 'text-green-600' },
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
     { path: '/expense', label: 'Expenses', icon: DollarSign },
-    { path: '/suppliers', label: 'Suppliers', icon: Truck },
+    
     { path: '/reports', label: 'Reports', icon: FileText },
     {
       path:'/ai-advisor',

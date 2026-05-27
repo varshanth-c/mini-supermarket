@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Package, TrendingUp, DollarSign, FileText, ShoppingCart, Receipt,
   Banknote, ShieldCheck, Users, Loader2, UserCheck, UserX, Briefcase,
-  Leaf, Bot, Truck, AlertTriangle, Sparkles,
+  Leaf, Bot, Truck
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { supabase } from '@/integrations/supabase/client';
@@ -125,23 +125,6 @@ const Dashboard = () => {
     enabled: !!profile?.shop_id,
   });
 
-  // FIX 5: Low Stock Query (Multi-shop isolation)
-  const { data: lowStockItems = [] } = useQuery({
-    queryKey: ['lowStockDashboard', profile?.shop_id],
-    queryFn: async () => {
-      if (!profile?.shop_id) return [];
-      const { data, error } = await supabase
-        .from('inventory')
-        .select(`item_name, quantity, low_stock_threshold`)
-        .eq('shop_id', profile.shop_id)
-        .lte('quantity', 10)
-        .gt('quantity', 0);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!profile?.shop_id,
-  });
-
   // ── Calculations ─────────────────────────────────────
   const dashboardData = useMemo(() => {
     const totalRevenue  = salesData.reduce((s: number, sale: any) => s + Number(sale.total_amount), 0);
@@ -155,9 +138,6 @@ const Dashboard = () => {
 
     const netProfit = totalRevenue - totalCOGS - totalExpenses;
 
-    const scannedItems = (inventoryData as any[]).filter(i => i.freshness_score && i.ai_recommended_price);
-    const wasteSaved   = scannedItems.reduce((s: number, i: any) => s + (i.ai_recommended_price * 10), 0);
-
     const recentActivity = [...salesData]
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
@@ -167,7 +147,7 @@ const Dashboard = () => {
         date: new Date(sale.created_at),
       }));
 
-    return { totalRevenue, totalCOGS, totalExpenses, netProfit, recentActivity, wasteSaved, scannedItems: scannedItems.length };
+    return { totalRevenue, totalCOGS, totalExpenses, netProfit, recentActivity };
   }, [salesData, inventoryData, expensesData]);
 
   const isLoading = isSalesLoading || isInventoryLoading || isExpensesLoading;
@@ -218,10 +198,10 @@ const Dashboard = () => {
 
   const quickActions = [
     { name: 'inventory', title: 'Manage Inventory', description: 'Add, edit or view stock', icon: Package, path: '/inventory', color: 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-800'   },
-    { name: 'freshness', title: 'Freshness AI', description: 'Scan perishable items', icon: Leaf, path: '/freshness', color: 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800' },
-    { name: 'advisor', title: 'AI Advisor', description: 'Ask business questions', icon: Bot, path: '/advisor', color: 'bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800' },
+    { name: 'freshness', title: 'Freshness AI', description: 'Scan perishable items', icon: Leaf, path: '/freshness-monitor', color: 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800' },
+    { name: 'advisor', title: 'AI Advisor', description: 'Ask business questions', icon: Bot, path: '/ai-advisor', color: 'bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800' },
     { name: 'pos', title: 'Point of Sale', description: 'Create new transactions', icon: ShoppingCart, path: '/sales', color: 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-800' },
-    { name: 'suppliers', title: 'Suppliers', description: 'Manage procurement', icon: Truck, path: '/suppliers', color: 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 border-amber-200 dark:border-amber-800'   },
+    { name: 'expense', title: 'Suppliers', description: 'Manage procurement', icon: Truck, path: '/expense', color: 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 border-amber-200 dark:border-amber-800'   },
     { name: 'reports', title: 'Reports', description: 'Analytics + forecasting', icon: FileText, path: '/reports', color: 'bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 border-rose-200 dark:border-rose-800' },
   ];
 
@@ -276,50 +256,6 @@ const Dashboard = () => {
             </Card>
           ))}
         </div>
-
-        {/* AI Insight Row — Admin Only */}
-        {isShopAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="border-0 shadow-sm dark:bg-gray-900 border-l-4 border-green-400">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Leaf className="h-4 w-4 text-green-500" /> Waste Savings (AI)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(dashboardData.wasteSaved)}</div>
-                <p className="text-xs text-gray-500 mt-1">Recovered via Freshness AI discounting</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm dark:bg-gray-900 border-l-4 border-orange-400">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-500" /> Low Stock Items
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{lowStockItems.length}</div>
-                <p className="text-xs text-gray-500 mt-1">Items requiring immediate reorder</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="border-0 shadow-sm dark:bg-gray-900 border-l-4 border-indigo-400 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate('/advisor')}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-indigo-500" /> AI Business Advisor
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm font-semibold text-indigo-600">RAG Analysis Active</div>
-                <p className="text-xs text-gray-500 mt-1">Ask questions about your live shop data</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Action Grid & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
